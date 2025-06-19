@@ -1,0 +1,228 @@
+{
+    "pegawai": [
+        {
+            "id": "1",
+            "email": "andi@rs.com",
+            "password": "andi123",
+            "role": "pegawai",
+            "nama": "Andi Saputra",
+            "jurusan_id": "J01",
+            "pendidikan_terakhir": "S1",
+            "pelatihan_diikuti": [
+                "b1",
+                "b2",
+                "b3",
+                "b4",
+                "b5",
+                "a1",
+                "a3",
+                "a5"
+            ],
+            "sertifikasi_id": "S01",
+            "posisi_id": "P01",
+            "umur": 32,
+            "nilai": null,
+            "tempat_lahir": "Bandung",
+            "tanggal_lahir": "1992-04-15",
+            "no_telepon": "081234567891",
+            "jabatan": "Staff Medis",
+            "created_at": "2024-01-01T08:00:00Z",
+            "updated_at": "2024-06-16T08:00:00Z"
+        },
+        {
+            "id": "2",
+            "email": "budi@rs.com",
+            "password": "budi456",
+            "role": "atasan",
+            "nama": "Budi Hartono",
+            "jurusan_id": "J02",
+            "pendidikan_terakhir": "D3",
+            "pelatihan_diikuti": [
+                "b1",
+                "b2",
+                "b3",
+                "b4",
+                "b5"
+            ],
+            "sertifikasi_id": "S02",
+            "posisi_id": "P02",
+            "umur": 29,
+            "nilai": null,
+            "tempat_lahir": "Semarang",
+            "tanggal_lahir": "1995-08-22",
+            "no_telepon": "082112345678",
+            "jabatan": "Kepala Apotek",
+            "created_at": "2024-01-01T08:00:00Z",
+            "updated_at": "2024-06-16T08:00:00Z"
+        }
+    ],
+    "jurusan": [
+        {
+            "id_jurusan": "J01",
+            "nama_jurusan": "Keperawatan",
+            "kampus_jurusan": "Universitas Indonesia",
+            "lulusan_terakhir": "S1",
+            "lulusan_tahun": 2015,
+            "created_at": "2024-01-01T08:00:00Z",
+            "updated_at": "2024-06-16T08:00:00Z"
+        },
+        {
+            "id_jurusan": "J02",
+            "nama_jurusan": "Farmasi",
+            "kampus_jurusan": "Universitas Gadjah Mada",
+            "lulusan_terakhir": "D3",
+            "lulusan_tahun": 2016,
+            "created_at": "2024-01-01T08:00:00Z",
+            "updated_at": "2024-06-16T08:00:00Z"
+        }
+    ],
+    "sertifikasi": [
+        {
+            "id_sertifikasi": "S01",
+            "nama_sertifikasi": "Sertifikasi Perawat Profesional",
+            "tanggal_berlaku": "2022-01-01",
+            "sertifikasi_dari": "BNPSI",
+            "created_at": "2024-01-01T08:00:00Z",
+            "updated_at": "2024-06-16T08:00:00Z"
+        },
+        {
+            "id_sertifikasi": "S02",
+            "nama_sertifikasi": "Sertifikasi Apoteker Indonesia",
+            "tanggal_berlaku": "2023-03-01",
+            "sertifikasi_dari": "IAI",
+            "created_at": "2024-01-01T08:00:00Z",
+            "updated_at": "2024-06-16T08:00:00Z"
+        }
+    ],
+    "posisi": [
+        {
+            "id_posisi": "P01",
+            "nama_posisi": "Perawat IGD",
+            "lama_menjabat": 3,
+            "created_at": "2024-01-01T08:00:00Z",
+            "updated_at": "2024-06-16T08:00:00Z"
+        },
+        {
+            "id_posisi": "P02",
+            "nama_posisi": "Apoteker",
+            "lama_menjabat": 2,
+            "created_at": "2024-01-01T08:00:00Z",
+            "updated_at": "2024-06-16T08:00:00Z"
+        }
+    ],
+    "pelatihan": [
+        {
+            "id_pelatihan": "PL01",
+            "nama_pelatihan": "Pelatihan Dasar IGD",
+            "tanggal_pelatihan": "2024-05-10",
+            "deskripsi_pelatihan": "Pelatihan dasar untuk tenaga IGD",
+            "syarat_pelatihan": [
+                "b1",
+                "b2",
+                "b3",
+                "b4",
+                "b5",
+                "a1",
+                "a3",
+                "a5"
+            ],
+            "syarat_jurusan": [
+                "J01"
+            ],
+            "syarat_sertifikasi": [
+                "S01"
+            ],
+            "syarat_pendidikan_terakhir": [
+                "S1"
+            ],
+            "syarat_max_umur": [
+                32
+            ],
+            "peserta": [
+                "1",
+                "2",
+                "3"
+            ],
+            "created_at": "2024-01-01T08:00:00Z",
+            "updated_at": "2024-06-16T08:00:00Z"
+        }
+    ],
+    "admin": [
+        {
+            "id": "99",
+            "email": "admin@rs.com",
+            "password": "admin123",
+            "role": "admin"
+        }
+    ],
+    "penilaian": [
+        {
+            "id_penilaian": "NIL01",
+            "pelatihan_id": "PL01",
+            "list_peserta": [
+                "1",
+                "2",
+                "3"
+            ],
+            "list_pelatihan_wajib": [
+                "PL01",
+                "PL02"
+            ],
+            "nilai": [
+                "LP001",
+                "LP002",
+                "LP003"
+            ],
+            "rumus_penilaian": "",
+            "created_at": "2024-01-01T08:00:00Z",
+            "updated_at": "2024-06-16T08:00:00Z"
+        }
+    ],
+    "log_penilaian": [
+        {
+            "id": "LP001",
+            "id_penilaian": "NIL01",
+            "id_user": "1",
+            "nilai_T1": 1,
+            "nilai_T2": 1,
+            "nilai_posisi": 1,
+            "nilai_jurusan": 1,
+            "nilai_umur": 1,
+            "nilai_pendidikan_terakhir": 1,
+            "nilai_sertifikasi": 1,
+            "total_nilai": 100,
+            "created_at": "2024-06-16T08:00:00Z",
+            "updated_at": "2024-06-16T08:00:00Z"
+        },
+        {
+            "id": "LP002",
+            "id_penilaian": "NIL01",
+            "id_user": "2",
+            "nilai_T1": 1,
+            "nilai_T2": 0,
+            "nilai_posisi": 0,
+            "nilai_jurusan": 0,
+            "nilai_umur": 1,
+            "nilai_pendidikan_terakhir": 0,
+            "nilai_sertifikasi": 1,
+            "total_nilai": 50,
+            "created_at": "2024-06-16T08:00:00Z",
+            "updated_at": "2024-06-16T08:00:00Z"
+        },
+        {
+            "id": "LP003",
+            "id_penilaian": "NIL01",
+            "id_user": "3",
+            "nilai_T1": 1,
+            "nilai_T2": 0.67,
+            "nilai_posisi": 0,
+            "nilai_jurusan": 0,
+            "nilai_umur": 0.85,
+            "nilai_pendidikan_terakhir": 0,
+            "nilai_sertifikasi": 1,
+            "total_nilai": 56.46,
+            "created_at": "2024-06-16T08:00:00Z",
+            "updated_at": "2024-06-16T08:00:00Z"
+        }
+    ]
+}
