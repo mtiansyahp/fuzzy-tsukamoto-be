@@ -3,148 +3,217 @@
 namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
-use Illuminate\Support\Facades\Storage;
+use App\Models\Pegawai;
+use App\Models\PegawaiPelatihanRiwayat;
+use App\Models\PelatihanJurusan;
+use App\Models\PelatihanSertifikasi;
+use App\Models\PelatihanPendidikan;
+use App\Models\LogPenilaian;
+use Carbon\Carbon;
 use Illuminate\Http\Request;
 
 class FuzzyController extends Controller
 {
-    private function loadData()
+    // Tambahkan ini di dalam class FuzzyController tapi DI LUAR method lainnya
+    private function generateKodeLogPenilaian()
     {
-        $json = Storage::disk('local')->get('data/db.json');
-        $data = json_decode($json, true);
-
-        if (!$data || !is_array($data)) {
-            abort(500, 'Data JSON tidak valid atau tidak bisa dibaca.');
-        }
-
-        return $data;
+        $max = LogPenilaian::selectRaw("MAX(CAST(SUBSTRING(id, 3) AS UNSIGNED)) as max_id")->value('max_id');
+        $next = $max ? $max + 1 : 1;
+        return 'LP' . str_pad($next, 3, '0', STR_PAD_LEFT);
     }
 
-    public function getAllPenilaian()
+    public function hitungFuzzyTsukamoto($id_peserta)
     {
-        $data = $this->loadData();
-        return response()->json($data['penilaian'] ?? []);
-    }
+        // Ambil data peserta + relasi
+        // $peserta = Pegawai::with(['jurusan', 'sertifikasi', 'posisi'])->find($id_peserta);
+        // if (!$peserta) {
+        //     return response()->json(['message' => 'Peserta tidak ditemukan'], 404);
+        // }
+        $peserta = Pegawai::with(['jurusan', 'sertifikasi', 'posisi'])
+            ->where('id', $id_peserta)
+            ->first();
 
-    public function getPenilaianDetail($id)
-    {
-        $data = $this->loadData();
 
-        $penilaian = collect($data['penilaian'] ?? [])->firstWhere('id_penilaian', $id);
-        if (!$penilaian) return response()->json(['message' => 'Penilaian tidak ditemukan'], 404);
+        // Ambil riwayat pelatihan
+        $riwayat = PegawaiPelatihanRiwayat::where('pegawai_id', $id_peserta)->pluck('kode_pelatihan')->toArray();
+        $T1 = collect($riwayat)->filter(fn($p) => str_starts_with($p, 'b'))->count() / 5;
+        $T2 = collect($riwayat)->filter(fn($p) => str_starts_with($p, 'a'))->count() / 5;
 
-        $pesertaList = collect($data['pegawai'])->whereIn('id', $penilaian['list_peserta'])->values();
-        $pelatihan = collect($data['pelatihan'])->firstWhere('id_pelatihan', $penilaian['pelatihan_id']);
+        // Input fuzzy terurut seperti gambar
+        $nilai_fuzzy = [
+            'T1' => $this->mapFuzzy('Pelatihan', $this->kategoriTingkat($T1)),
+            'T2' => $this->mapFuzzy('Pelatihan', $this->kategoriTingkat($T2)),
+            'pendidikan' => $this->mapFuzzy('Pendidikan', $this->kategoriTingkatPendidikan($peserta->pendidikan_terakhir)),
+            'umur' => $this->mapFuzzy('Umur', $this->kategoriUmur($peserta->tanggal_lahir)),
+            'sertifikasi' => $this->mapFuzzy('Sertifikasi', $this->kategoriSertifikasi($peserta->sertifikasi_id)),
+            'pelatihan' => $this->mapFuzzy('PelatihanRiwayat', count($riwayat) > 0 ? 'Sudah Pernah Ikut' : 'Tidak Pernah'),
+            'jurusan' => $this->mapFuzzy('Jurusan', $this->kategoriJurusan($peserta->jurusan_id)),
+            'posisi' => $this->mapFuzzy('Posisi', $this->kategoriPosisi($peserta->posisi_id)),
+        ];
 
-        $hasilFuzzy = $this->hitungFuzzy(
-            $pesertaList->toArray(),
-            $pelatihan,
-            $data['jurusan'],
-            $data['sertifikasi'],
-            $data['posisi']
-        );
+        // Hitung skor akhir fuzzy
+        $skor = round(array_sum($nilai_fuzzy) / count($nilai_fuzzy) * 100, 2);
+        $kategori = $this->klasifikasiSkor($skor);
+        // dd($peserta->id);
+        // dd($peserta->id); // pastikan bernilai "P001", bukan "0" atau null
+
+        // Simpan ke log penilaian
+        LogPenilaian::create([
+
+            'id' => $this->generateKodeLogPenilaian(),
+            'id_user' => $peserta->id,
+            'id_penilaian' => 'NIL01',
+            'nilai_T1' => $nilai_fuzzy['T1'],
+            'nilai_T2' => $nilai_fuzzy['T2'],
+            'nilai_pendidikan_terakhir' => $nilai_fuzzy['pendidikan'],
+            'nilai_umur' => $nilai_fuzzy['umur'],
+            'nilai_sertifikasi' => $nilai_fuzzy['sertifikasi'],
+            'nilai_jurusan' => $nilai_fuzzy['jurusan'],
+            'nilai_posisi' => $nilai_fuzzy['posisi'],
+            'total_nilai' => $skor,
+        ]);
+
 
         return response()->json([
-            'penilaian' => $penilaian,
-            'perhitungan_fuzzy' => $hasilFuzzy,
+            'peserta' => $peserta->nama,
+            'input_fuzzy' => $nilai_fuzzy,
+            'skor_akhir' => $skor,
+            'kategori' => $kategori
         ]);
     }
 
-
-    public function getLogPenilaianByUser($userId)
+    private function mapFuzzy($tipe, $kategori)
     {
-        $data = $this->loadData();
+        $fuzzyMap = [
+            'Pelatihan' => ['Tidak Cocok' => 0.2, 'Kurang Cocok' => 0.4, 'Hampir Cocok' => 0.6, 'Cocok' => 0.8, 'Sangat Cocok' => 1.0],
+            'Pendidikan' => ['Tidak Cocok' => 0.2, 'Kurang Cocok' => 0.4, 'Hampir Cocok' => 0.6, 'Cocok' => 0.8, 'Sangat Cocok' => 1.0],
+            'Umur' => ['Tidak Dekat' => 0, 'Semakin Dekat' => 0.5, 'Cocok' => 1],
+            'Sertifikasi' => ['Sangat Sering' => 0.1, 'Sering' => 0.3, 'Pernah' => 1.0],
+            'PelatihanRiwayat' => ['Tidak Pernah' => 0, 'Sudah Pernah Ikut' => 1],
+            'Jurusan' => ['Tidak Relevan' => 0, 'Sedikit Relevan' => 0.5, 'Sangat Relevan' => 1],
+            'Posisi' => ['Tidak Cocok' => 0, 'Sangat Cocok' => 1]
+        ];
 
-        $log = collect($data['log_penilaian'] ?? [])
-            ->where('id_user', $userId)
-            ->values();
-
-        if ($log->isEmpty()) {
-            return response()->json(['message' => 'Log penilaian tidak ditemukan'], 404);
-        }
-
-        return response()->json($log);
+        return $fuzzyMap[$tipe][$kategori] ?? 0;
     }
-    private function hitungFuzzyWithLog(array $peserta, array $pelatihan): array
+
+    private function kategoriTingkat($nilai)
     {
-        $logResults = [];
+        if ($nilai >= 0.8) return 'Sangat Cocok';
+        elseif ($nilai >= 0.6) return 'Cocok';
+        elseif ($nilai >= 0.4) return 'Hampir Cocok';
+        elseif ($nilai >= 0.2) return 'Kurang Cocok';
+        else return 'Tidak Cocok';
+    }
 
-        foreach ($peserta as $p) {
-            $idLog = 'LP' . str_pad(rand(100, 999), 3, '0', STR_PAD_LEFT);
+    private function kategoriTingkatPendidikan($tingkat)
+    {
+        return match (strtolower($tingkat)) {
+            'SMA' => 'Kurang Cocok',
+            'D3' => 'Hampir Cocok',
+            'S1' => 'Cocok',
+            'S2', 'S3' => 'Sangat Cocok',
+            default => 'Tidak Cocok',
+        };
+    }
 
-            $bCount = collect($p['pelatihan_diikuti'])->filter(fn($v) => str_starts_with($v, 'b'))->count();
-            $aCount = collect($p['pelatihan_diikuti'])->filter(fn($v) => str_starts_with($v, 'a'))->count();
+    private function kategoriUmur($tgl_lahir)
+    {
+        $umur = Carbon::parse($tgl_lahir)->age;
+        return match (true) {
+            $umur <= 25 => 'Cocok',
+            $umur <= 35 => 'Semakin Dekat',
+            default => 'Tidak Dekat'
+        };
+    }
 
-            $T1 = $bCount / 5;
-            $T2 = $aCount / 5;
+    private function kategoriSertifikasi($id)
+    {
+        if (!$id) return 'Tidak Pernah';
+        return 'Sering'; // atau cek tanggal berlaku jika ingin lebih akurat
+    }
 
-            $jurusanOk = in_array($p['jurusan_id'], $pelatihan['syarat_jurusan']) ? 1 : 0;
-            $posisiOk = isset($pelatihan['syarat_posisi']) && in_array($p['posisi_id'], $pelatihan['syarat_posisi']) ? 1 : 0;
-            $umurOk = in_array($p['umur'], $pelatihan['syarat_max_umur']) ? 1 : 0;
-            $pendOk = in_array($p['pendidikan_terakhir'], $pelatihan['syarat_pendidikan_terakhir']) ? 1 : 0;
-            $sertOk = in_array($p['sertifikasi_id'], $pelatihan['syarat_sertifikasi']) ? 1 : 0;
+    private function kategoriJurusan($jurusan_id)
+    {
+        // Cek apakah jurusan termasuk dalam syarat pelatihan tertentu? (sementara: Sangat Relevan)
+        return 'Sangat Relevan'; // bisa disesuaikan
+    }
 
-            $total = ($T1 + $T2 + $posisiOk + $jurusanOk + $umurOk + $pendOk + $sertOk) / 7 * 100;
+    private function kategoriPosisi($posisi_id)
+    {
+        return $posisi_id ? 'Sangat Cocok' : 'Tidak Cocok';
+    }
 
-            $logResults[] = [
-                'id' => $idLog,
-                'id_penilaian' => $pelatihan['id_pelatihan'],
-                'id_user' => $p['id'],
-                'step_log' => [
-                    'T1' => ['b_count' => $bCount, 'result' => round($T1, 2)],
-                    'T2' => ['a_count' => $aCount, 'result' => round($T2, 2)],
-                    'jurusan' => [
-                        'expected' => $pelatihan['syarat_jurusan'],
-                        'actual' => $p['jurusan_id'],
-                        'result' => $jurusanOk
-                    ],
-                    'posisi' => [
-                        'expected' => $pelatihan['syarat_posisi'] ?? [],
-                        'actual' => $p['posisi_id'],
-                        'result' => $posisiOk
-                    ],
-                    'umur' => [
-                        'expected' => $pelatihan['syarat_max_umur'],
-                        'actual' => $p['umur'],
-                        'result' => $umurOk
-                    ],
-                    'pendidikan' => [
-                        'expected' => $pelatihan['syarat_pendidikan_terakhir'],
-                        'actual' => $p['pendidikan_terakhir'],
-                        'result' => $pendOk
-                    ],
-                    'sertifikasi' => [
-                        'expected' => $pelatihan['syarat_sertifikasi'],
-                        'actual' => $p['sertifikasi_id'],
-                        'result' => $sertOk
-                    ]
-                ],
-                'total_nilai' => round($total, 2),
-                'created_at' => now()->toISOString(),
-                'updated_at' => now()->toISOString()
+    private function klasifikasiSkor($skor)
+    {
+        if ($skor >= 85) return 'Sangat Baik';
+        if ($skor >= 75) return 'Baik';
+        if ($skor >= 65) return 'Cukup';
+        if ($skor >= 50) return 'Kurang';
+        return 'Sangat Kurang';
+    }
+    public function hitungBatchPeserta($id_penilaian)
+    {
+        // Ambil semua peserta yang terkait pelatihan tertentu
+        $pesertaList = \App\Models\PelatihanPeserta::where('pelatihan_id', $id_penilaian)
+            ->with(['pegawai.jurusan', 'pegawai.sertifikasi', 'pegawai.posisi'])
+            ->get();
+
+        $results = [];
+
+        foreach ($pesertaList as $pesertaItem) {
+            $pegawai = $pesertaItem->pegawai;
+            if (!$pegawai) continue;
+
+            $riwayat = \App\Models\PegawaiPelatihanRiwayat::where('pegawai_id', $pegawai->id)
+                ->pluck('kode_pelatihan')->toArray();
+            $T1 = collect($riwayat)->filter(fn($p) => str_starts_with($p, 'b'))->count() / 5;
+            $T2 = collect($riwayat)->filter(fn($p) => str_starts_with($p, 'a'))->count() / 5;
+
+            $nilai_fuzzy = [
+                'T1' => $this->mapFuzzy('Pelatihan', $this->kategoriTingkat($T1)),
+                'T2' => $this->mapFuzzy('Pelatihan', $this->kategoriTingkat($T2)),
+                'pendidikan' => $this->mapFuzzy('Pendidikan', $this->kategoriTingkatPendidikan($pegawai->pendidikan_terakhir)),
+                'umur' => $this->mapFuzzy('Umur', $this->kategoriUmur($pegawai->tanggal_lahir)),
+                'sertifikasi' => $this->mapFuzzy('Sertifikasi', $this->kategoriSertifikasi($pegawai->sertifikasi_id)),
+                'pelatihan' => $this->mapFuzzy('PelatihanRiwayat', count($riwayat) > 0 ? 'Sudah Pernah Ikut' : 'Tidak Pernah'),
+                'jurusan' => $this->mapFuzzy('Jurusan', $this->kategoriJurusan($pegawai->jurusan_id)),
+                'posisi' => $this->mapFuzzy('Posisi', $this->kategoriPosisi($pegawai->posisi_id)),
+            ];
+
+            $skor = round(array_sum($nilai_fuzzy) / count($nilai_fuzzy) * 100, 2);
+            $kategori = $this->klasifikasiSkor($skor);
+
+            // Simpan ke log_penilaian
+            \App\Models\LogPenilaian::updateOrCreate(
+                ['id_user' => $pegawai->id, 'id_penilaian' => $id_penilaian],
+                [
+                    'nilai_T1' => $nilai_fuzzy['T1'],
+                    'nilai_T2' => $nilai_fuzzy['T2'],
+                    'nilai_pendidikan_terakhir' => $nilai_fuzzy['pendidikan'],
+                    'nilai_umur' => $nilai_fuzzy['umur'],
+                    'nilai_sertifikasi' => $nilai_fuzzy['sertifikasi'],
+                    'nilai_jurusan' => $nilai_fuzzy['jurusan'],
+                    'nilai_posisi' => $nilai_fuzzy['posisi'],
+                    'total_nilai' => $skor,
+                ]
+            );
+
+            $results[] = [
+                'id_user' => $pegawai->id,
+                'nama' => $pegawai->nama,
+                'skor' => $skor,
+                'kategori' => $kategori
             ];
         }
 
-        return $logResults;
-    }
-    public function getDetailPenilaianWithLog($id)
-    {
-        $data = $this->loadData();
-
-        $penilaian = collect($data['penilaian'])->firstWhere('id_penilaian', $id);
-        if (!$penilaian) {
-            return response()->json(['message' => 'Penilaian tidak ditemukan'], 404);
-        }
-
-        $pesertaList = collect($data['pegawai'])->whereIn('id', $penilaian['list_peserta'])->values();
-        $pelatihan = collect($data['pelatihan'])->firstWhere('id_pelatihan', $penilaian['pelatihan_id']);
-
-        $log = $this->hitungFuzzyWithLog($pesertaList->toArray(), $pelatihan);
+        // Urutkan dari skor tertinggi ke terendah
+        $sorted = collect($results)->sortByDesc('skor')->values();
 
         return response()->json([
-            'penilaian_id' => $id,
-            'nama_pelatihan' => $pelatihan['nama_pelatihan'] ?? null,
-            'log_perhitungan' => $log
+            'pelatihan_id' => $id_penilaian,
+            'total_peserta' => count($sorted),
+            'hasil_klasifikasi' => $sorted
         ]);
     }
 }
