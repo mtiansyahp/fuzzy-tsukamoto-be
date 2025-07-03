@@ -8,9 +8,15 @@ class Jurusan extends Model
 {
     protected $table = 'jurusan';
     protected $primaryKey = 'id_jurusan';
+
+    // 👇 Tambahkan baris-baris penting ini:
+    public $incrementing = false;
+    protected $keyType = 'string';
+
     public $timestamps = true;
 
-    protected $fillable = ['nama_jurusan', 'kampus_jurusan', 'lulusan_terakhir', 'lulusan_tahun'];
+    protected $fillable = ['id_jurusan', 'nama_jurusan', 'kampus_jurusan', 'lulusan_terakhir', 'lulusan_tahun'];
+
 
     public function pegawai()
     {

@@ -8,14 +8,12 @@ use Illuminate\Http\Request;
 
 class MasterPelatihanController extends Controller
 {
-    // Tampilkan semua data pelatihan
     public function index()
     {
-        $pelatihan = MasterPelatihan::all();
-        return response()->json($pelatihan);
+        // Tampilkan semua data pelatihan
+        return response()->json(MasterPelatihan::all());
     }
 
-    // Simpan data pelatihan baru
     public function store(Request $request)
     {
         $validated = $request->validate([
@@ -24,18 +22,15 @@ class MasterPelatihanController extends Controller
         ]);
 
         $pelatihan = MasterPelatihan::create($validated);
-
         return response()->json($pelatihan, 201);
     }
 
-    // Tampilkan detail pelatihan berdasarkan ID
     public function show($id)
     {
         $pelatihan = MasterPelatihan::findOrFail($id);
         return response()->json($pelatihan);
     }
 
-    // Perbarui data pelatihan
     public function update(Request $request, $id)
     {
         $pelatihan = MasterPelatihan::findOrFail($id);
@@ -46,16 +41,13 @@ class MasterPelatihanController extends Controller
         ]);
 
         $pelatihan->update($validated);
-
         return response()->json($pelatihan);
     }
 
-    // Hapus data pelatihan
     public function destroy($id)
     {
         $pelatihan = MasterPelatihan::findOrFail($id);
         $pelatihan->delete();
-
         return response()->json(['message' => 'Pelatihan berhasil dihapus.']);
     }
 }

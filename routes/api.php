@@ -43,7 +43,9 @@ Route::get('/uji-penilaian/{id}', [FuzzyController::class, 'getDetailPenilaianWi
 
 
 // Route::apiResource('pegawai', PegawaiController::class);
+use App\Http\Controllers\Api\AuthController;
 
+Route::post('/login', [AuthController::class, 'login']);
 Route::apiResource('pegawai', PegawaiController::class);
 Route::apiResource('pelatihan', PelatihanController::class);
 Route::apiResource('master-pelatihan', MasterPelatihanController::class);
@@ -60,5 +62,9 @@ Route::apiResource('penilaian-wajib', PenilaianWajibController::class);
 Route::apiResource('posisi', PosisiController::class);
 Route::apiResource('sertifikasi', SertifikasiController::class);
 Route::apiResource('pegawai-riwayat', PegawaiPelatihanRiwayatController::class);
+// routes/api.php
+Route::get('/pegawai/reference-data', [PegawaiController::class, 'getReferenceData']);
+Route::apiResource('master-pelatihan', MasterPelatihanController::class);
+
 Route::get('/fuzzy/hitung/{id_peserta}', [FuzzyController::class, 'hitungFuzzyTsukamoto']);
 Route::get('/fuzzy/penilaian/{id}', [\App\Http\Controllers\Api\FuzzyController::class, 'hitungBatchPeserta']);

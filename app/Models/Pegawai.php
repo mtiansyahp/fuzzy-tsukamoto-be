@@ -7,42 +7,41 @@ use Illuminate\Database\Eloquent\Model;
 class Pegawai extends Model
 {
     protected $table = 'pegawai';
-    protected $primaryKey = 'id';
-    protected $keyType = 'string'; // penting agar ID seperti 'P001' dianggap string
-    public $incrementing = false; // karena kamu pakai manual id
-    public $timestamps = true;
+
+    protected $primaryKey = 'id'; // sesuai kolom id di DB kamu
+    public $incrementing = false; // karena bukan auto-increment
+    protected $keyType = 'string'; // karena kamu pakai P001, dst
 
     protected $fillable = [
+        'id', // ← tambahkan ini agar bisa diisi manual
+        'nama',
         'email',
         'password',
         'role',
-        'nama',
         'jurusan_id',
-        'pendidikan_terakhir',
         'sertifikasi_id',
         'posisi_id',
         'umur',
-        'nilai',
         'tempat_lahir',
         'tanggal_lahir',
         'no_telepon',
-        'jabatan'
     ];
 
     public function jurusan()
     {
-        return $this->belongsTo(Jurusan::class, 'jurusan_id');
+        return $this->belongsTo(Jurusan::class, 'jurusan_id', 'id_jurusan');
     }
-
     public function sertifikasi()
     {
-        return $this->belongsTo(Sertifikasi::class, 'sertifikasi_id');
+        return $this->belongsTo(Sertifikasi::class, 'sertifikasi_id', 'id_sertifikasi');
     }
+
 
     public function posisi()
     {
-        return $this->belongsTo(Posisi::class, 'posisi_id');
+        return $this->belongsTo(Posisi::class, 'posisi_id', 'id_posisi');
     }
+
 
     public function logPenilaian()
     {
